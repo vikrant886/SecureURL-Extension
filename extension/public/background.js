@@ -22,13 +22,11 @@ chrome.tabs.onUpdated.addListener(async(tabId, changeInfo, tab) => {
         const isSafe = await checkUrlSafety(tab.url);
 
         if (!isSafe) {
-            console.log("mallware spotted sending message");
             chrome.tabs.sendMessage(tabId, { type: 'maliciousUrl', url: tab.url }, (response) => {
                 console.log('Response from content script:', response);
             });
         }
         else {
-            console.log("ok url")
             chrome.tabs.sendMessage(tabId, { type: 'good', url: tab.url }, (response) => {
                 console.log('Response from content script:', response);
             });
