@@ -21,6 +21,19 @@
     "notifications",
     "activeTab", "scripting"
   ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["build/static/js/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "host_permissions": ["<all_urls>"],
   "omnibox": {
     "keyword": "safecheck"
   }
