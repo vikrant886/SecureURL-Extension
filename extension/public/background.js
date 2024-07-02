@@ -2,36 +2,42 @@ const API_KEY = 'AIzaSyA3ineL93uf7D5vOQJGk3qWIHp9rpVKOro';
 const API_URL = `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${API_KEY}`;
 
 chrome.tabs.onCreated.addListener(async (tab) => {
+    console.log(tab)
     const url = tab.pendingUrl;
-    if (url) {
+    if (url && url!="chrome://newtab/") {
         console.log(`Checking URL: ${url}`);
         const isSafe = await checkUrlSafety(url);
-        chrome.storage.local.set({ lastCheckedUrl: { url, isSafe } });
         if (!isSafe) {
-            notifyUnsafeUrl(url)
+            chrome.tabs.sendMessage(tab.id, { type: 'maliciousUrl', url: tab.url }, (response) => {
+                console.log('Response from content script:', response);
+            });
         } else {
             console.log(`The URL ${url} is safe.`);
         }
     }
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.url) {
-        console.log(`URL updated: ${changeInfo.url}`);
+chrome.tabs.onUpdated.addListener(async(tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.url) {
+        const isSafe = await checkUrlSafety(tab.url);
 
-        // Check URL safety using Flask server or Google Safe Browsing API
-        checkUrlSafety(changeInfo.url).then((isSafe) => {
-            if (!isSafe) {
-                notifyUnsafeUrl(changeInfo.url);
-            }
-        });
+        if (!isSafe) {
+            console.log("mallware spotted sending message");
+            chrome.tabs.sendMessage(tabId, { type: 'maliciousUrl', url: tab.url }, (response) => {
+                console.log('Response from content script:', response);
+            });
+        }
+        else {
+            console.log("ok url")
+            chrome.tabs.sendMessage(tabId, { type: 'good', url: tab.url }, (response) => {
+                console.log('Response from content script:', response);
+            });
+        }
     }
 });
 
-// Function to check URL safety using Flask server or Google Safe Browsing API
 async function checkUrlSafety(url) {
     try {
-        // Send a POST request to your Flask server or Google Safe Browsing API
         const response = await fetch("http://127.0.0.1:4000/upload", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -40,7 +46,7 @@ async function checkUrlSafety(url) {
 
         const data = await response.json();
         console.log(data[0].label);
-        const isSafe = data[0].label === "BENIGN"; // Assuming the label field indicates safety
+        const isSafe = data[0].label === "BENIGN" ? true : false; 
 
         return isSafe;
     } catch (error) {
@@ -49,7 +55,6 @@ async function checkUrlSafety(url) {
     }
 }
 
-// Function to create a notification for unsafe URLs
 function notifyUnsafeUrl(url) {
     chrome.notifications.create({
         type: 'basic',
